@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>蹭饭图</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='80'>🗺️</text></svg>">
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════
+        口令验证遮罩
+       ══════════════════════════════════════ -->
+  <div class="password-gate" id="passwordGate">
+    <div class="password-gate-card">
+      <h2 class="password-gate-title">🔒 身份验证</h2>
+      <p class="password-gate-desc">这是哪所学校？</p>
+      <input type="text" id="passwordInput" class="password-gate-input"
+             placeholder="请输入……" autocomplete="off" autofocus>
+      <button id="passwordSubmit" class="password-gate-btn">验证</button>
+      <p class="password-gate-error" id="passwordError"></p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+        顶部导航栏
+       ══════════════════════════════════════ -->
+  <header class="header">
+    <div class="header-brand">
+      <img class="brand-icon" src="favicon.ico" alt="logo">
+      <h1 class="brand-title">天府第七中学 G2020 级蹭饭图</h1>
+    </div>
+
+    <div class="header-actions">
+      <!-- 搜索框 -->
+      <div class="search-wrap">
+        <input type="text" id="searchInput" class="search-input" placeholder="搜索同学姓名 / 大学……" autocomplete="off">
+        <button id="searchBtn" class="search-btn" title="搜索">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- 关于按钮 -->
+      <button class="action-btn" id="aboutBtn">关于</button>
+      <!-- 数据统计按钮 -->
+      <button class="action-btn" id="statsBtn">数据统计</button>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════
+       搜索结果导航条（多结果时显示）
+       ══════════════════════════════════════ -->
+  <div class="search-nav" id="searchNav">
+    <button class="search-nav-btn" id="searchNavPrev" aria-label="上一个结果">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+    </button>
+    <span class="search-nav-info" id="searchNavInfo"></span>
+    <button class="search-nav-btn" id="searchNavNext" aria-label="下一个结果">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+    </button>
+    <button class="search-nav-close" id="searchNavClose" aria-label="清除搜索结果">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       地图容器
+       ══════════════════════════════════════ -->
+  <div id="map-container"></div>
+
+   <!-- ══════════════════════════════════════
+        右下角数据缺失面板（独立于班级筛选）
+        ══════════════════════════════════════ -->
+   <button type="button" class="missing-panel hidden" id="missingDataToggle">
+     <span class="missing-icon">⚠️</span>
+     <span class="missing-label">数据缺失</span>
+     <span class="missing-count" id="missingCount">0人</span>
+   </button>
+
+   <!-- ══════════════════════════════════════
+        右下角班级筛选面板
+        ══════════════════════════════════════ -->
+   <div class="class-panel" id="classPanel">
+     <div class="panel-header">
+       <span class="panel-icon">📚</span>
+       <span class="panel-title">班级筛选</span>
+     </div>
+     <div class="panel-body">
+      <label class="class-item c1">
+        <input type="checkbox" id="class1">
+        <span class="class-dot"></span>
+        <span class="class-name">1 班</span>
+        <span class="class-count" id="count1">0人</span>
+      </label>
+      <label class="class-item c2">
+        <input type="checkbox" id="class2">
+        <span class="class-dot"></span>
+        <span class="class-name">2 班</span>
+        <span class="class-count" id="count2">0人</span>
+      </label>
+      <label class="class-item c3">
+        <input type="checkbox" id="class3">
+        <span class="class-dot"></span>
+        <span class="class-name">3 班</span>
+        <span class="class-count" id="count3">0人</span>
+      </label>
+      <label class="class-item c4">
+        <input type="checkbox" id="class4">
+        <span class="class-dot"></span>
+        <span class="class-name">4 班</span>
+        <span class="class-count" id="count4">0人</span>
+      </label>
+    </div>
+    <div class="panel-footer">
+      <span id="totalCount">共加载 0 人</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       加载遮罩（地理编码进行时显示）
+       ══════════════════════════════════════ -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-box">
+      <div class="spinner"></div>
+      <div class="loading-text">正在定位大学位置，请稍候…</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       关于 模态框
+       ══════════════════════════════════════ -->
+   <div class="modal" id="aboutModal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+     <div class="modal-card wide">
+       <div class="modal-head">
+         <h2 class="modal-title" id="aboutTitle">关于本站</h2>
+         <button class="modal-close" data-modal="aboutModal" aria-label="关闭">✕</button>
+       </div>
+       <div class="modal-body">
+         <div class="about-section">
+           <h3>🏫 项目简介</h3>
+           <p>天府七中 G2020 级<strong>蹭饭图</strong>是一个展示 2020 届高中毕业生就读大学地理分布的可视化工具。以<strong>天地图卫星影像</strong>为底图，将全年级四个班同学的大学去向以彩色标记呈现在全国地图上——散落各地的求学轨迹，一张图尽收眼底。无论你身处何方，地图上总有一颗属于你的坐标。</p>
+         </div>
+         <div class="about-section">
+           <h3>🔒 身份验证</h3>
+           <p>页面加载后首先展示验证遮罩，需输入正确的<strong>学校名称</strong>才能解锁地图内容。口令通过浏览器端 SHA-256 哈希比对验证，代码中不储存任何明文口令，确保数据仅在班级内部流转。</p>
+         </div>
+         <div class="about-section">
+           <h3>🗺️ 班级筛选</h3>
+           <ul>
+             <li>右下角<strong>「班级筛选」面板</strong>提供了 1–4 班的复选框，可单独或任意组合勾选。</li>
+             <li>每个班级以独立颜色标识——1班紫色、2班绿色、3班琥珀色、4班红色。</li>
+             <li>若多个班级有同学就读同一所大学，该标记会<strong>自动合并</strong>为灰色，信息窗内分班列出所有同学。</li>
+             <li>面板底部实时显示当前已勾选班级的<strong>总人数</strong>。</li>
+           </ul>
+         </div>
+         <div class="about-section">
+           <h3>📍 大学定位逻辑</h3>
+           <p>每个大学的坐标通过以下<strong>优先级链条</strong>确定：</p>
+           <ol>
+             <li><strong>预置经纬度优先：</strong>若数据文件中某同学提供了有效的 <code>latitude</code> / <code>longitude</code> 字段（十进制度，纬度 -90~90、经度 -180~180），则直接以此坐标落点，无需额外网络请求。</li>
+             <li><strong>坐标冲突检测：</strong>同一大学若不同同学提供了不一致的坐标，系统判定为冲突，自动回退到地理编码搜索。</li>
+             <li><strong>天地图地理编码：</strong>以上情况均不满足时，通过<strong>天地图地理编码服务</strong>将"城市+大学名"转换为经纬度坐标。编码请求以 250ms 间隔逐条发送，避免触发 API 限流。</li>
+           </ol>
+           <p>地理编码结果会<strong>缓存</strong>至内存（geoCache），同一大学只需请求一次。编码过程中页面展示加载蒙层与进度提示。</p>
+         </div>
+         <div class="about-section">
+           <h3>🔍 搜索功能</h3>
+           <p>顶部搜索框支持<strong>两种检索模式</strong>，按优先级依次匹配：</p>
+           <ol>
+             <li><strong>同学姓名搜索：</strong>在全年级数据中模糊匹配姓名（不区分大小写）。优先精确匹配，命中后地图自动飞至该大学并打开信息窗。若该生所在班级未被当前勾选，会<strong>临时创建标记</strong>并自动合并显示所有班级数据。</li>
+             <li><strong>大学/城市搜索：</strong>若姓名未命中，则按大学名称模糊匹配。同样优先精确全名匹配，支持城市名称检索。</li>
+           </ol>
+           <p>当存在<strong>多个搜索结果</strong>时，顶部出现导航条（ ← 上一个 / 下一个 → ），可逐一浏览。关闭搜索后临时标记自动清除，原有标记恢复原状。</p>
+         </div>
+         <div class="about-section">
+           <h3>📊 数据统计</h3>
+           <p>点击顶部<strong>「数据统计」按钮</strong>打开统计面板，内容包括：</p>
+           <ul>
+             <li><strong>年级总览：</strong>全年级总人数及各班级人数徽标。</li>
+             <li><strong>城市分布 Top 8：</strong>以水平柱状图展示同学去向最多的城市排名。</li>
+             <li><strong>热门院校 Top 8：</strong>以水平柱状图展示录取人数最多的院校排名。院校名称智能合并——去除括号内校区后缀（如"某某大学（北京校区）"），同时保留<strong>独立办学实体</strong>的完整名称（如"中国地质大学（武汉）"与"中国地质大学（北京）"分别统计，中国石油大学、中国矿业大学同理）。</li>
+           </ul>
+         </div>
+         <div class="about-section">
+           <h3>⚠️ 数据缺失</h3>
+           <p>部分同学可能缺少大学去向信息。勾选班级后，右下角会显示<strong>「数据缺失」面板</strong>，点击可查看当前已勾选班级中缺失信息的具体名单。该面板独立于班级筛选，仅在有缺数据时可见。</p>
+         </div>
+         <div class="about-section">
+           <h3>💡 交互提示</h3>
+           <ul>
+             <li><strong>悬停标记：</strong>鼠标悬停地图标记，弹出轻量预览框，显示大学名称与就读人数。</li>
+             <li><strong>点击标记：</strong>点击标记打开完整信息窗，按班级分组列出所有同学姓名，附带班级颜色徽标。</li>
+             <li><strong>长校名滚动：</strong>标记信息窗中，大学名称超过 15 字时自动启用跑马灯滚动显示。</li>
+             <li><strong>模态框操作：</strong>所有弹窗（关于、数据统计、数据缺失）均可通过右上角 ✕ 按钮、点击背景遮罩、或按下 <kbd>ESC</kbd> 键关闭。</li>
+             <li><strong>Toast 提示：</strong>操作反馈（搜索无结果、API 额度提示等）以底部短暂浮条形式呈现，3 秒后自动消失。</li>
+             <li><strong>比例尺：</strong>地图左下角提供比例尺控件，方便判断实际距离。</li>
+             <li><strong>缩放：</strong>支持鼠标滚轮缩放（4–18 级），初始视野覆盖中国全境。</li>
+           </ul>
+         </div>
+         <div class="about-section">
+           <h3>🛡️ 容错机制</h3>
+           <ul>
+             <li><strong>API 额度检测：</strong>通过监听天地图瓦片加载失败和地理编码连续失败两种通道，判定当日 API 调用额度是否已满，一旦触发即暂停队列并提示用户。</li>
+             <li><strong>超时保护：</strong>每条地理编码请求设置 8 秒超时，超时后不缓存结果，允许后续重试。</li>
+             <li><strong>版本号隔离：</strong>切换班级、关闭搜索等操作会递增版本号，使飞行中的异步回调自动失效，避免过期数据污染当前视图。</li>
+           </ul>
+         </div>
+         <div class="about-section">
+           <h3>⚙️ 技术栈</h3>
+           <ul>
+             <li>地图引擎：<a href="https://lbs.tianditu.gov.cn/" target="_blank" rel="noopener">天地图 JavaScript API v4.0</a>（卫星影像底图）</li>
+             <li>地理编码：天地图 Geocoder 服务</li>
+             <li>密码学：Web Crypto API（SHA-256）</li>
+             <li>纯原生 HTML / CSS / JavaScript，无第三方框架依赖</li>
+           </ul>
+         </div>
+         <div class="about-section">
+           <h3>🛠️ 数据维护</h3>
+           <p>班级数据分别存储在 <code>data/class1.js</code> ~ <code>data/class4.js</code> 中。每个文件导出两个数组：</p>
+           <ul>
+             <li><strong>class<i>N</i>Data：</strong>已知去向的同学，每项包含 <code>{ name, university, city }</code> 及可选的 <code>{ latitude, longitude }</code> 坐标字段。</li>
+             <li><strong>class<i>N</i>MissingData：</strong>缺失去向的同学，每项包含 <code>{ name }</code>。</li>
+           </ul>
+           <p>若地图无法正常加载，请在 <code>index.html</code> 末尾将天地图 API 引用中的 TK 替换为您的有效开发密钥。</p>
+         </div>
+       </div>
+     </div>
+   </div>
+
+  <!-- ══════════════════════════════════════
+       数据统计 模态框
+       ══════════════════════════════════════ -->
+  <div class="modal" id="statsModal" role="dialog" aria-modal="true" aria-labelledby="statsTitle">
+    <div class="modal-card wide">
+      <div class="modal-head">
+        <h2 class="modal-title" id="statsTitle">数据统计</h2>
+        <button class="modal-close" data-modal="statsModal" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body" id="statsContent">
+        <!-- 由 JS 动态填充 -->
+      </div>
+    </div>
+  </div>
+
+   <!-- ══════════════════════════════════════
+        数据缺失 模态框
+        ══════════════════════════════════════ -->
+   <div class="modal" id="missingDataModal" role="dialog" aria-modal="true" aria-labelledby="missingDataTitle">
+     <div class="modal-card wide">
+       <div class="modal-head">
+         <h2 class="modal-title" id="missingDataTitle">⚠️ 数据缺失</h2>
+         <button class="modal-close" data-modal="missingDataModal" aria-label="关闭">✕</button>
+       </div>
+       <div class="modal-body" id="missingDataContent">
+         <!-- 由 JS 动态填充 -->
+       </div>
+     </div>
+   </div>
+
+   <!-- ══════════════════════════════════════
+        Toast 提示
+        ══════════════════════════════════════ -->
+   <div class="toast" id="toast"></div>
+
+  <!-- ══════════════════════════════════════
+       班级数据文件（各班独立 JS）
+       ══════════════════════════════════════ -->
+  <script src="data/class1.js"></script>
+  <script src="data/class2.js"></script>
+  <script src="data/class3.js"></script>
+  <script src="data/class4.js"></script>
+
+  <!-- 主逻辑（须在地图 API 之前加载，以便定义 onTMapCallback） -->
+  <script src="js/main.js"></script>
+
+  <!--
+    天地图 JavaScript API v4.0
+    ★ 必须将下方 YOUR_API_KEY 替换为您在天地图开放平台申请的 TK，否则地图不会加载 ★
+    申请地址：https://lbs.tianditu.gov.cn/
+  -->
+  <script src="https://api.tianditu.gov.cn/api?v=4.0&tk=7403bbf65cbf354d6a9e3574134f9789"></script>
+  <script>
+    (function bootstrapTMap(maxRetry) {
+      if (typeof window.onTMapCallback !== 'function') return;
+      var usingPlaceholderKey = !!document.querySelector('script[src*="tk=YOUR_API_KEY"]');
+      if (usingPlaceholderKey) {
+        console.error('请先在 index.html 中将 YOUR_API_KEY 替换为有效的天地图 TK。');
+        return;
+      }
+      if (typeof window.T !== 'undefined') {
+        window.onTMapCallback();
+        return;
+      }
+      if (maxRetry > 0) {
+        setTimeout(function () { bootstrapTMap(maxRetry - 1); }, 100);
+      }
+    })(30);
+  </script>
+
+</body>
+</html>
