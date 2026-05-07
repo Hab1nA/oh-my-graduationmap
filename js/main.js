@@ -11,7 +11,7 @@
 let map;
 let geocoder;
 
-/** 已解析过的大学坐标缓存 { "大学名": T.LngLat | null } */
+/** 已解析过的大学坐标缓存 { "大学名": { point: T.LngLat | null, timestamp: number } } */
 const geoCache = {};
 
 /** 当前显示在地图上的标记列表（按当前复选状态整体重算） */
@@ -93,7 +93,7 @@ let tileErrorWindowTimer = null;
 /** 将一个大学名称加入编码队列，结果通过 callback(T.LngLat|null) 返回 */
 function enqueueGeocode(university, city, callback) {
   if (Object.prototype.hasOwnProperty.call(geoCache, university)) {
-    callback(geoCache[university]);
+    callback(geoCache[university].point);
     return;
   }
 
@@ -117,6 +117,24 @@ function enqueueGeocode(university, city, callback) {
   }
 }
 
+/** 查找缓存中最旧的键（基于时间戳） */
+function findOldestCacheKey(cache) {
+  let oldestKey = null;
+  let oldestTimestamp = Infinity;
+  
+  for (const key in cache) {
+    if (Object.prototype.hasOwnProperty.call(cache, key)) {
+      const entry = cache[key];
+      if (entry.timestamp < oldestTimestamp) {
+        oldestTimestamp = entry.timestamp;
+        oldestKey = key;
+      }
+    }
+  }
+  
+  return oldestKey;
+}
+
 /** 逐条执行队列中的地理编码请求（限速 250 ms/次，避免触发 API 限流） */
 function processNextGeocode() {
   if (geocodeQueue.length === 0) {
@@ -128,7 +146,7 @@ function processNextGeocode() {
   const item = geocodeQueue.shift();
 
   if (Object.prototype.hasOwnProperty.call(geoCache, item.university)) {
-    item.callback(geoCache[item.university]);
+    item.callback(geoCache[item.university].point);
     setTimeout(processNextGeocode, 10);
     return;
   }
@@ -145,14 +163,15 @@ function processNextGeocode() {
     const point = parseGeocodeResult(result);
     
     const maxCacheSize = (typeof CONFIG !== 'undefined' && CONFIG.maxGeoCacheSize) ? CONFIG.maxGeoCacheSize : 500;
-    const cacheKeys = Object.keys(geoCache);
     
-    if (cacheKeys.length >= maxCacheSize) {
-      const oldestKey = cacheKeys[0];
-      delete geoCache[oldestKey];
+    if (Object.keys(geoCache).length >= maxCacheSize) {
+      const oldestKey = findOldestCacheKey(geoCache);
+      if (oldestKey) {
+        delete geoCache[oldestKey];
+      }
     }
     
-    geoCache[item.university] = point;
+    geoCache[item.university] = { point: point, timestamp: Date.now() };
     item.callback(point);
     setTimeout(processNextGeocode, geocodeInterval);
   });
