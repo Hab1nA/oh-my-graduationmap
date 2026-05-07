@@ -204,7 +204,6 @@ var class3Data = [
 ];
 
 var class3MissingData = [
-  // { "name": "同学姓名" }
   { "name": "杨涵文" },
   { "name": "许馨文" },
   { "name": "黄晨笛" },

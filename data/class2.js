@@ -171,7 +171,6 @@ var class2Data = [
 ];
 
 var class2MissingData = [
-  // { "name": "同学姓名" }
   { "name": "张语乐" },
   { "name": "马梓源" },
   { "name": "李涵熙" }

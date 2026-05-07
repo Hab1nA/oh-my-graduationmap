@@ -85,5 +85,54 @@ const CONFIG = {
 
   /* ── 地图标记颜色 ─────────────────────────────── */
   /** 多班同校合并标记的颜色 */
-  mergedMarkerColor: '#9ca3af'
+  mergedMarkerColor: '#9ca3af',
+
+  /* ── 地理编码配置 ─────────────────────────────── */
+  /** 地理编码请求间隔（毫秒），避免触发 API 限流 */
+  geocodeInterval: 250,
+
+  /** 地理编码请求超时时间（毫秒） */
+  geocodeTimeout: 8000,
+
+  /** 连续失败阈值，超过此值判定为配额不足 */
+  maxConsecutiveFailures: 5,
+
+  /** 瓦片加载失败阈值（10秒窗口内） */
+  tileErrorThreshold: 8,
+
+  /* ── 性能配置 ─────────────────────────────────── */
+  /** 地理编码缓存最大条目数 */
+  maxGeoCacheSize: 500,
+
+  /** 搜索防抖延迟（毫秒） */
+  searchDebounceDelay: 300
 };
+
+/* ── 配置验证 ──────────────────────────────────────────── */
+(function validateConfig() {
+  const required = ['classCount', 'classColors', 'classNames', 'tiandituTK', 'validPasswordHashes'];
+  const errors = [];
+
+  for (let i = 0; i < required.length; i++) {
+    if (!(required[i] in CONFIG)) {
+      errors.push('缺少必需配置项: ' + required[i]);
+    }
+  }
+
+  if (CONFIG.classCount && typeof CONFIG.classCount !== 'number') {
+    errors.push('classCount 必须是数字');
+  }
+
+  if (CONFIG.classCount && CONFIG.classCount <= 0) {
+    errors.push('classCount 必须大于 0');
+  }
+
+  if (CONFIG.classColors && typeof CONFIG.classColors !== 'object') {
+    errors.push('classColors 必须是对象');
+  }
+
+  if (errors.length > 0) {
+    console.error('配置验证失败:', errors.join('\n'));
+    throw new Error('配置验证失败: ' + errors.join(', '));
+  }
+})();

@@ -74,7 +74,7 @@ const TMAP_GEOCODE_SUCCESS = 0;
 
 /** 地理编码连续失败计数器（非"未找到结果"类错误），用于检测配额不足 */
 let consecutiveGeocodeFailures = 0;
-const MAX_CONSECUTIVE_FAILURES = 5;
+const MAX_CONSECUTIVE_FAILURES = (typeof CONFIG !== 'undefined' && CONFIG.maxConsecutiveFailures) ? CONFIG.maxConsecutiveFailures : 5;
 
 /** 是否已报过 API 额度已满（避免重复弹 toast） */
 let quotaExceededNotified = false;
@@ -87,7 +87,7 @@ let geocodeCancelledVersion = 0;
 
 /** 瓦片图片加载失败计数（10 秒窗口内达阈值则判定额度已满） */
 let tileErrorCount = 0;
-let tileErrorThreshold = 8;
+let tileErrorThreshold = (typeof CONFIG !== 'undefined' && CONFIG.tileErrorThreshold) ? CONFIG.tileErrorThreshold : 8;
 let tileErrorWindowTimer = null;
 
 /** 将一个大学名称加入编码队列，结果通过 callback(T.LngLat|null) 返回 */
@@ -105,7 +105,6 @@ function enqueueGeocode(university, city, callback) {
     university,
     city,
     callback: function (point) {
-      // 若队列已被强制清空（版本号已变），跳过计数操作以防负数
       if (geocodeCancelledVersion !== capturedVersion) return;
       callback(point);
       pendingGeocodesCount--;
@@ -128,7 +127,6 @@ function processNextGeocode() {
   geocodingActive = true;
   const item = geocodeQueue.shift();
 
-  // 再次检查缓存（避免重复请求同一大学）
   if (Object.prototype.hasOwnProperty.call(geoCache, item.university)) {
     item.callback(geoCache[item.university]);
     setTimeout(processNextGeocode, 10);
@@ -136,32 +134,40 @@ function processNextGeocode() {
   }
 
   const keyword = (item.city ? item.city + '市' : '') + item.university;
-  var completed = false; // 防止回调与超时双重触发
+  var completed = false;
+  const geocodeTimeout = (typeof CONFIG !== 'undefined' && CONFIG.geocodeTimeout) ? CONFIG.geocodeTimeout : 8000;
+  const geocodeInterval = (typeof CONFIG !== 'undefined' && CONFIG.geocodeInterval) ? CONFIG.geocodeInterval : 250;
 
   geocoder.getPoint(keyword, function (result) {
     if (completed) return;
     completed = true;
     console.log('[天地图地理编码]', keyword, '→', result);
     const point = parseGeocodeResult(result);
-    geoCache[item.university] = point; // null 时表示未找到，也缓存，避免重复请求
+    
+    const maxCacheSize = (typeof CONFIG !== 'undefined' && CONFIG.maxGeoCacheSize) ? CONFIG.maxGeoCacheSize : 500;
+    const cacheKeys = Object.keys(geoCache);
+    
+    if (cacheKeys.length >= maxCacheSize) {
+      const oldestKey = cacheKeys[0];
+      delete geoCache[oldestKey];
+    }
+    
+    geoCache[item.university] = point;
     item.callback(point);
-    setTimeout(processNextGeocode, 250);
+    setTimeout(processNextGeocode, geocodeInterval);
   });
 
-  // 超时保护（8 秒）：若天地图 API 因额度已满等原因拒绝请求，回调可能永不触发
   setTimeout(function () {
     if (completed) return;
     completed = true;
-    console.warn('[天地图地理编码] 超时（8s）：', keyword);
-    // 计入连续失败，触发阈值检测
+    console.warn('[天地图地理编码] 超时（' + (geocodeTimeout / 1000) + 's）：', keyword);
     consecutiveGeocodeFailures++;
     if (consecutiveGeocodeFailures >= MAX_CONSECUTIVE_FAILURES) {
       handleSevereFailure();
     }
-    // 不缓存超时结果，允许后续重试
     item.callback(null);
     processNextGeocode();
-  }, 8000);
+  }, geocodeTimeout);
 }
 
 /* ─── 班级面板动态生成 ────────────────────────────────── */
@@ -194,19 +200,14 @@ function injectClassColorCSS() {
   const style = document.getElementById('class-color-style');
   const cssLines = [];
 
-  // 给每个班级设定 CSS 自定义属性 --class-N-color
   for (let i = 1; i <= CLASS_COUNT; i++) {
     const color = CLASS_COLORS[i] || '#9ca3af';
     cssLines.push('  --class-' + i + '-color: ' + color + ';');
   }
 
-  // 覆盖原先 CSS 中为 .c1 ~ .c4 硬编码的颜色
   if (cssLines.length > 0) {
-    // 使用 :root 确保自定义属性全局可用
     let css = ':root {\n' + cssLines.join('\n') + '\n}\n';
 
-    // 为每个班级的 .class-dot / .class-item.cX 等生成精确选择器
-    // 这样就不依赖之前 CSS 中为 .c1 .class-dot 等写死的配色
     for (let i = 1; i <= CLASS_COUNT; i++) {
       css += '\n';
       css += '.class-item.c' + i + ' .class-dot {\n';
@@ -215,7 +216,6 @@ function injectClassColorCSS() {
       css += '}\n';
     }
 
-    // 工具类：text / border / bg 色（供任何地方使用某个班级颜色）
     for (let i = 1; i <= CLASS_COUNT; i++) {
       css += '.text-class' + i + ' { color: var(--class-' + i + '-color) !important; }\n';
       css += '.border-class' + i + ' { border-color: var(--class-' + i + '-color) !important; }\n';
@@ -262,7 +262,6 @@ function initPasswordGate() {
   // 合法口令的 SHA-256 哈希（从 CONFIG 读取，口令原文不会出现在代码中）
   const validHashes = (typeof CONFIG !== 'undefined' && CONFIG.validPasswordHashes) ? CONFIG.validPasswordHashes : [];
 
-  // 设置口令提示文字
   const promptEl = document.getElementById('passwordPrompt');
   if (promptEl) {
     const promptText = (typeof CONFIG !== 'undefined' && CONFIG.passwordPrompt) ? CONFIG.passwordPrompt : '这是哪所学校？';
@@ -274,9 +273,6 @@ function initPasswordGate() {
   const submitBtn = document.getElementById('passwordSubmit');
   const errorEl = document.getElementById('passwordError');
 
-  /**
-   * 验证口令
-   */
   function verify() {
     const raw = input.value.trim();
     if (!raw) return;
@@ -291,16 +287,13 @@ function initPasswordGate() {
       }
 
       if (match) {
-        // 验证通过
         document.querySelector('.header').classList.add('reveal');
         document.querySelector('.class-panel').classList.add('reveal');
         gate.classList.add('dismiss');
-        // 动画完成后移除 DOM
         setTimeout(function () {
           gate.style.display = 'none';
         }, 450);
       } else {
-        // 口令错误
         errorEl.textContent = '名称错误，请重试';
         input.classList.add('shake');
         input.value = '';
@@ -318,30 +311,25 @@ function initPasswordGate() {
   });
 }
 
-/* ─── 页面标题设置 ───────────────────────────────────── */
 function setupBrandTitle() {
   const titleEl = document.getElementById('brandTitle');
   const titleText = (typeof CONFIG !== 'undefined' && CONFIG.pageTitle) ? CONFIG.pageTitle : '蹭饭图';
   if (titleEl) {
     titleEl.textContent = titleText;
   }
-  // 同步设置浏览器标签页标题
   document.title = titleText;
 }
 
-/* ─── 关于弹窗动态文案 ───────────────────────────────────── */
 function buildAboutContent() {
   const rangeEl = document.getElementById('aboutClassRange');
   const colorsEl = document.getElementById('aboutClassColors');
   const dataFilesEl = document.getElementById('aboutDataFiles');
   if (!rangeEl && !colorsEl && !dataFilesEl) return;
 
-  // 班级范围：如 "1–4" 或 "1–6"
   if (rangeEl) {
     rangeEl.textContent = '1–' + CLASS_COUNT;
   }
 
-  // 班级颜色描述：如 "1班紫色、2班绿色、3班琥珀色、4班红色"
   if (colorsEl) {
     const colorNameMap = (typeof CONFIG !== 'undefined' && CONFIG.colorNameMap) ? CONFIG.colorNameMap : {};
     const parts = [];
@@ -356,40 +344,30 @@ function buildAboutContent() {
     colorsEl.textContent = parts.join('、');
   }
 
-  // 数据文件列表：如 "<code>data/class1.js</code> ~ <code>data/class4.js</code>"
   if (dataFilesEl) {
     dataFilesEl.innerHTML = '<code>data/class1.js</code> ~ <code>data/class' + CLASS_COUNT + '.js</code>';
   }
 }
 
-/* ─── DOM 就绪后立即初始化（无需等待地图 API） ───────────── */
 document.addEventListener('DOMContentLoaded', function () {
-  /* ─── 动态生成班级面板 + CSS ────────────────────────────── */
   buildClassPanel();
   injectClassColorCSS();
 
-  /* ─── 设置标题栏文字 ─────────────────────────────────────── */
   setupBrandTitle();
 
-  /* ─── 关于弹窗动态文案 ─────────────────────────────────── */
   buildAboutContent();
 
-  /* ─── 口令验证 ──────────────────────────────────────────── */
   initPasswordGate();
 
-  /* ─── 绑定数据（供人数显示与统计使用）—— 动态根据 CLASS_COUNT 绑定 */
   for (let ci = 1; ci <= CLASS_COUNT; ci++) {
     ALL_CLASS_DATA[ci] = (typeof window['class' + ci + 'Data'] !== 'undefined') ? window['class' + ci + 'Data'] : [];
     ALL_MISSING_DATA[ci] = (typeof window['class' + ci + 'MissingData'] !== 'undefined') ? window['class' + ci + 'MissingData'] : [];
   }
 
-  // 人数徽标
   updateCountBadges();
 
-  // 初始化"数据缺失"面板相对"班级筛选"面板的位置
   positionMissingPanel();
 
-  // 关于 / 数据统计按钮（不依赖地图）
   document.getElementById('aboutBtn').addEventListener('click', function () {
     openModal('aboutModal');
   });
@@ -398,7 +376,6 @@ document.addEventListener('DOMContentLoaded', function () {
     openModal('statsModal');
   });
 
-  // 数据缺失栏目点击
   document.getElementById('missingDataToggle').addEventListener('click', function () {
     var selected = getSelectedClasses();
     if (selected.length === 0) return;
@@ -406,21 +383,18 @@ document.addEventListener('DOMContentLoaded', function () {
     openModal('missingDataModal');
   });
 
-  // 关闭按钮
   document.querySelectorAll('.modal-close').forEach(function (btn) {
     btn.addEventListener('click', function () {
       closeModal(this.dataset.modal);
     });
   });
 
-  // 点击遮罩关闭
   document.querySelectorAll('.modal').forEach(function (modal) {
     modal.addEventListener('click', function (e) {
       if (e.target === this) closeModal(this.id);
     });
   });
 
-  // ESC 键关闭
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
       document.querySelectorAll('.modal.show').forEach(function (m) {
@@ -429,7 +403,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  // 窗口大小变化时重新计算"数据缺失"面板位置
   window.addEventListener('resize', function () {
     positionMissingPanel();
   });
@@ -463,9 +436,6 @@ window.onTMapCallback = function () {
   // 绑定地图相关的 UI 事件
   setupMapEventListeners();
 
-  // ─── 地图瓦片加载失败监听 ────────────────────────────
-  // 天地图瓦片通过 <img> 加载，域名含 tianditu.gov.cn
-  // 若短时间内大量瓦片加载失败，判定额度已满
   document.addEventListener('error', function (e) {
     var el = e.target;
     if (!el || el.tagName !== 'IMG') return;
@@ -475,7 +445,6 @@ window.onTMapCallback = function () {
     tileErrorCount++;
     console.warn('[天地图瓦片] 加载失败 (' + tileErrorCount + '/' + tileErrorThreshold + '):', src.substring(0, 100));
 
-    // 首次失败启动 10 秒重置窗口
     if (!tileErrorWindowTimer) {
       tileErrorWindowTimer = setTimeout(function () {
         tileErrorCount = 0;
@@ -485,7 +454,6 @@ window.onTMapCallback = function () {
 
     if (tileErrorCount >= tileErrorThreshold) {
       handleQuotaExceeded();
-      // 达到阈值后停止计数，避免重复触发
       tileErrorCount = 0;
       if (tileErrorWindowTimer) {
         clearTimeout(tileErrorWindowTimer);
@@ -509,13 +477,11 @@ function setupMapEventListeners() {
     }
   }
 
-  // 搜索框
   document.getElementById('searchBtn').addEventListener('click', performSearch);
   document.getElementById('searchInput').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') performSearch();
   });
 
-  // 搜索结果导航条
   document.getElementById('searchNavPrev').addEventListener('click', function () {
     if (searchResultIndex > 0) {
       searchResultIndex--;
@@ -530,11 +496,8 @@ function setupMapEventListeners() {
   });
   document.getElementById('searchNavClose').addEventListener('click', hideSearchNav);
 
-  // ─── 触摸设备：点击地图空白处关闭信息窗 ────────────
   if (isTouchDevice) {
     map.addEventListener('click', function (e) {
-      // marker 的 click 事件会先触发并设置 activeInfoWindowMarker
-      // 此处用 setTimeout 确保在 marker click 之后执行
       setTimeout(function () {
         if (activeInfoWindowMarker) {
           activeInfoWindowMarker.closeInfoWindow();
@@ -660,16 +623,11 @@ function addMarkerToMap(point, group) {
   activeMarkers.push(marker);
   activeMarkerByUniversity[group.university] = marker;
 
-  // 若搜索临时标记恰好属于同一大学，则移除它（正式标记已覆盖）
   if (searchPinnedMarker && searchPinnedMarker.__university === group.university) {
     clearSearchPinnedMarker();
   }
 }
 
-/**
- * 创建并配置一个地图标记（含悬停/点击信息窗）。
- * 不负责添加到地图或管理任何全局状态。
- */
 function createMarker(point, group, color, merged) {
   const icon = new T.Icon({
     iconUrl: createPinIcon(color),
@@ -687,7 +645,6 @@ function createMarker(point, group, color, merged) {
   marker.__infoWindow = infoWindow;
 
   if (!isTouchDevice) {
-    // 桌面端：悬停预览 + 点击打开信息窗
     marker.addEventListener('mouseover', function () { marker.openInfoWindow(hoverInfoWindow); });
     marker.addEventListener('mouseout',  function () { marker.closeInfoWindow(); });
   }
@@ -1347,8 +1304,6 @@ function parseGeocodeResult(result) {
     return new T.LngLat(result.lng, result.lat);
   }
 
-  // 检测错误状态码（天地图实际只返回 status=1 表示服务异常，无 311/301 等细分码）
-  // 额度已满时 status !== 0，累积失败计数，达阈值则触发 handleSevereFailure
   if (hasStatusMethod) {
     var status = result.getStatus();
     if (status !== TMAP_GEOCODE_SUCCESS) {
@@ -1367,11 +1322,8 @@ function parseGeocodeResult(result) {
   return null;
 }
 
-/** 处理天地图 API 当日配额已满 */
 function handleQuotaExceeded() {
-  // 递增取消版本号，使所有在途回调失效，避免 pendingGeocodesCount 变负
   geocodeCancelledVersion++;
-  // 清空等待队列
   geocodeQueue.length = 0;
   geocodingActive = false;
   pendingGeocodesCount = 0;
