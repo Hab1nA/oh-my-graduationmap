@@ -263,15 +263,12 @@
         班级数据文件（根据 CONFIG.classCount 动态加载）
         ══════════════════════════════════════ -->
    <script>
-    (function () {
-      var count = (typeof CONFIG !== 'undefined' && CONFIG.classCount) ? CONFIG.classCount : 4;
-      for (var i = 1; i <= count; i++) {
-        var script = document.createElement('script');
-        script.src = 'data/class' + i + '.js';
-        script.async = false;
-        document.head.appendChild(script);
-      }
-    })();
+   (function () {
+     var count = (typeof CONFIG !== 'undefined' && CONFIG.classCount) ? CONFIG.classCount : 4;
+     for (var i = 1; i <= count; i++) {
+       document.write('<script src="data/class' + i + '.js"><\/script>');
+     }
+   })();
   </script>
 
    <!-- 主逻辑（须在地图 API 之前加载，以便定义 onTMapCallback） -->

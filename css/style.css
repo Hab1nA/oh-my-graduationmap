@@ -555,6 +555,20 @@ body {
 .bar-fill { height: 100%; border-radius: 4px; transition: width 0.7s cubic-bezier(0.4,0,0.2,1); }
 .bar-count { width: 38px; font-size: 12px; color: #94a3b8; flex-shrink: 0; }
 
+@keyframes marquee-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+.marquee-wrap {
+  overflow: hidden;
+  width: 100%;
+}
+.marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee-scroll 8s linear infinite;
+}
+
 /* ══════════════════════════════════════════════════════════
    Toast 提示
    ══════════════════════════════════════════════════════════ */
