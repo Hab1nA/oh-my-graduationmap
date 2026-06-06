@@ -1,5 +1,5 @@
 /**
- * 天府七中G2020级蹭饭图 — 主逻辑
+ * 毕业去向地图模板 — 主逻辑
  *
  * 依赖：
  *   - 天地图 JavaScript API v4.0（index.html 中加载后调用 onTMapCallback）
@@ -76,8 +76,8 @@ const TMAP_GEOCODE_SUCCESS = 0;
 let consecutiveGeocodeFailures = 0;
 const MAX_CONSECUTIVE_FAILURES = (typeof CONFIG !== 'undefined' && CONFIG.maxConsecutiveFailures) ? CONFIG.maxConsecutiveFailures : 5;
 
-/** 是否已报过 API 额度已满（避免重复弹 toast） */
-let quotaExceededNotified = false;
+/** 是否已报过瓦片连续加载失败（避免重复弹 toast） */
+let tileFailureNotified = false;
 
 /** 是否已报过连续严重失败（避免重复弹 toast） */
 let severeFailureNotified = false;
@@ -85,10 +85,21 @@ let severeFailureNotified = false;
 /** 取消版本号：每次强制清空队列时递增，使滞留的异步回调可检测自身是否已过期 */
 let geocodeCancelledVersion = 0;
 
-/** 瓦片图片加载失败计数（10 秒窗口内达阈值则判定额度已满） */
+/** 瓦片图片加载失败计数（10 秒窗口内达阈值则提示检查 TK、网络或服务额度） */
 let tileErrorCount = 0;
 let tileErrorThreshold = (typeof CONFIG !== 'undefined' && CONFIG.tileErrorThreshold) ? CONFIG.tileErrorThreshold : 8;
 let tileErrorWindowTimer = null;
+
+function getTiandituTK() {
+  return (typeof CONFIG !== 'undefined' && CONFIG.tiandituTK) ? String(CONFIG.tiandituTK).trim() : '';
+}
+
+function isTiandituTKConfigured(tk) {
+  if (!tk) return false;
+  if (tk === 'YOUR_TIANDITU_TK_HERE') return false;
+  if (tk.indexOf('YOUR_') === 0) return false;
+  return true;
+}
 
 /** 将一个大学名称加入编码队列，结果通过 callback(T.LngLat|null) 返回 */
 function enqueueGeocode(university, city, callback) {
@@ -343,10 +354,11 @@ function initPasswordGate() {
 function setupBrandTitle() {
   const titleEl = document.getElementById('brandTitle');
   const titleText = (typeof CONFIG !== 'undefined' && CONFIG.pageTitle) ? CONFIG.pageTitle : '蹭饭图';
+  const browserTitle = (typeof CONFIG !== 'undefined' && CONFIG.browserTitle) ? CONFIG.browserTitle : titleText;
   if (titleEl) {
     titleEl.textContent = titleText;
   }
-  document.title = titleText;
+  document.title = browserTitle;
 }
 
 function buildAboutContent() {
@@ -442,7 +454,12 @@ window.onTMapCallback = function () {
   if (tmapInitialized) return;
   tmapInitialized = true;
   // 卫星影像底图—— TK 从 CONFIG 获取
-  var tk = (typeof CONFIG !== 'undefined' && CONFIG.tiandituTK) ? CONFIG.tiandituTK : '';
+  var tk = getTiandituTK();
+  if (!isTiandituTKConfigured(tk)) {
+    showToast('⚠️ 请先在 js/config.js 中配置有效的天地图 TK');
+    console.error('天地图 TK 未配置，请修改 CONFIG.tiandituTK');
+    return;
+  }
   var satelliteUrl = "https://t0.tianditu.gov.cn/img_w/wmts?"
     + "SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default"
     + "&TILEMATRIXSET=w&FORMAT=tiles"
@@ -484,7 +501,7 @@ window.onTMapCallback = function () {
     }
 
     if (tileErrorCount >= tileErrorThreshold) {
-      handleQuotaExceeded();
+      handleTileLoadFailure();
       tileErrorCount = 0;
       if (tileErrorWindowTimer) {
         clearTimeout(tileErrorWindowTimer);
@@ -609,7 +626,7 @@ function clearActiveMarkers() {
 function renderSelectedMarkers() {
   // 切换班级时重置错误状态，允许重试地理编码
   consecutiveGeocodeFailures = 0;
-  quotaExceededNotified = false;
+  tileFailureNotified = false;
   severeFailureNotified = false;
 
   const selectedClasses = getSelectedClasses();
@@ -1349,28 +1366,26 @@ function parseGeocodeResult(result) {
   return null;
 }
 
-function handleQuotaExceeded() {
+function resetGeocodeQueue() {
   geocodeCancelledVersion++;
   geocodeQueue.length = 0;
   geocodingActive = false;
   pendingGeocodesCount = 0;
   updateLoadingOverlay();
+}
 
-  if (!quotaExceededNotified) {
-    quotaExceededNotified = true;
-    showToast('⚠️ 天地图 API 今日调用额度已满，地图定位功能暂时不可用');
+function handleTileLoadFailure() {
+  resetGeocodeQueue();
+
+  if (!tileFailureNotified) {
+    tileFailureNotified = true;
+    showToast('⚠️ 天地图瓦片连续加载失败，请检查 TK、网络或服务额度');
   }
 }
 
 /** 处理地理编码连续严重失败 */
 function handleSevereFailure() {
-  // 递增取消版本号，使所有在途回调失效，避免 pendingGeocodesCount 变负
-  geocodeCancelledVersion++;
-  // 清空等待队列
-  geocodeQueue.length = 0;
-  geocodingActive = false;
-  pendingGeocodesCount = 0;
-  updateLoadingOverlay();
+  resetGeocodeQueue();
 
   if (!severeFailureNotified) {
     severeFailureNotified = true;

@@ -12,7 +12,10 @@
 const CONFIG = {
   /* ── 页面信息 ─────────────────────────────── */
   /** 页面顶部导航栏标题文字 */
-  pageTitle: '天府第七中学 G2020 级蹭饭图',
+  pageTitle: '杭州第二中学毕业去向地图模板',
+
+  /** 浏览器标签页标题文字 */
+  browserTitle: '毕业去向地图模板',
 
   /** 口令验证界面的提示问题 */
   passwordPrompt: '这是哪所学校？',
@@ -28,28 +31,27 @@ const CONFIG = {
    *     .then(h => Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2,'0')).join(''))
    */
   validPasswordHashes: [
-    '61709488ccbe179a5e67f0e9743cfc3873738f77c44efb944cdd1664c99e17b3',
-    '547971b416fcc76c0e08c153b12eff69ff5807c60271fe27187b95a359d6b396',
-    '8fc5700a1439de46364bcb4ad2720479852cf8ed29769bcd588d20d52a34dc9a'
+    '2e03f3251d70c28a76fd1b9a2aa366b823391da7d0818608146d292ec8107ebf'
   ],
 
   /* ── 天地图 API ─────────────────────────────── */
   /** 天地图 API 密钥（TK），请在 https://lbs.tianditu.gov.cn/ 申请 */
-  tiandituTK: '7403bbf65cbf354d6a9e3574134f9789',
+  tiandituTK: 'YOUR_TIANDITU_TK_HERE',
 
   /* ── 班级配置 ─────────────────────────────── */
   /** 班级总数（核心配置，修改后需同步 data/ 下的数据文件） */
-  classCount: 4,
+  classCount: 5,
 
   /**
    * 各班代表颜色（key 为班级编号 1~classCount，value 为 CSS 颜色值）
    * 用于地图标记、班级筛选面板的色点、统计图表等
    */
   classColors: {
-    1: '#a74bb6', // 紫
-    2: '#10b981', // 绿
-    3: '#f59e0b', // 琥珀
-    4: '#a3292b'  // 红
+    1: '#cd00ec', // 紫
+    2: '#1ae62b', // 绿
+    3: '#ffd21c', // 琥珀
+    4: '#fc3232', // 红
+    5: '#3b82f6'  // 蓝
   },
 
   /**
@@ -59,7 +61,8 @@ const CONFIG = {
     1: '1 班',
     2: '2 班',
     3: '3 班',
-    4: '4 班'
+    4: '4 班',
+    5: '5 班'
   },
 
   /* ── 班级颜色名称映射（可选，用于关于弹窗描述） ─────── */

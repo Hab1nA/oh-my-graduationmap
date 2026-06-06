@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>蹭饭图</title>
+  <title>毕业去向地图模板</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='80'>🗺️</text></svg>">
 </head>
@@ -130,7 +130,7 @@
        <div class="modal-body">
           <div class="about-section">
             <h3>🏫 项目简介</h3>
-            <p>天府七中 G2020 级<strong>蹭饭图</strong>是一个展示 2020 届高中毕业生就读大学地理分布的可视化工具。以<strong>天地图卫星影像</strong>为底图，将全年级各班同学的大学去向以彩色标记呈现在全国地图上——散落各地的求学轨迹，一张图尽收眼底。无论你身处何方，地图上总有一颗属于你的坐标。</p>
+            <p><strong>毕业去向地图模板</strong>是一个展示高中毕业生大学去向地理分布的可视化工具。示例数据使用虚构学生姓名和部分真实高校名称，以<strong>天地图卫星影像</strong>为底图，将各班同学的升学去向以彩色标记呈现在全国地图上。你可以按自己的学校、年级、班级和数据规模替换配置与数据文件。</p>
           </div>
          <div class="about-section">
            <h3>🔒 身份验证</h3>
@@ -184,7 +184,7 @@
              <li><strong>点击标记：</strong>点击标记打开完整信息窗，按班级分组列出所有同学姓名，附带班级颜色徽标。</li>
              <li><strong>长校名滚动：</strong>标记信息窗中，大学名称超过 15 字时自动启用跑马灯滚动显示。</li>
              <li><strong>模态框操作：</strong>所有弹窗（关于、数据统计、数据缺失）均可通过右上角 ✕ 按钮、点击背景遮罩、或按下 <kbd>ESC</kbd> 键关闭。</li>
-             <li><strong>Toast 提示：</strong>操作反馈（搜索无结果、API 额度提示等）以底部短暂浮条形式呈现，3 秒后自动消失。</li>
+             <li><strong>Toast 提示：</strong>操作反馈（搜索无结果、地图服务配置或网络异常等）以底部短暂浮条形式呈现，3 秒后自动消失。</li>
              <li><strong>比例尺：</strong>地图左下角提供比例尺控件，方便判断实际距离。</li>
              <li><strong>缩放：</strong>支持鼠标滚轮缩放（4–18 级），初始视野覆盖中国全境。</li>
            </ul>
@@ -192,7 +192,7 @@
          <div class="about-section">
            <h3>🛡️ 容错机制</h3>
            <ul>
-             <li><strong>API 额度检测：</strong>通过监听天地图瓦片加载失败和地理编码连续失败两种通道，判定当日 API 调用额度是否已满，一旦触发即暂停队列并提示用户。</li>
+             <li><strong>地图服务异常检测：</strong>启动时先检查天地图 TK 是否已配置；运行中监听瓦片加载失败和地理编码连续失败，触发后暂停队列并提示检查 TK、网络或服务额度。</li>
              <li><strong>超时保护：</strong>每条地理编码请求设置 8 秒超时，超时后不缓存结果，允许后续重试。</li>
              <li><strong>版本号隔离：</strong>切换班级、关闭搜索等操作会递增版本号，使飞行中的异步回调自动失效，避免过期数据污染当前视图。</li>
            </ul>
@@ -280,7 +280,20 @@
    -->
    <script>
      (function () {
-       var tk = (typeof CONFIG !== 'undefined' && CONFIG.tiandituTK) ? CONFIG.tiandituTK : '';
+       var tk = (typeof window.getTiandituTK === 'function') ? window.getTiandituTK()
+         : ((typeof CONFIG !== 'undefined' && CONFIG.tiandituTK) ? String(CONFIG.tiandituTK).trim() : '');
+       var tkConfigured = (typeof window.isTiandituTKConfigured === 'function')
+         ? window.isTiandituTKConfigured(tk)
+         : !!tk;
+       if (!tkConfigured) {
+         var missingTkToast = document.getElementById('toast');
+         if (missingTkToast) {
+           missingTkToast.textContent = '请先在 js/config.js 中配置有效的天地图 TK';
+           missingTkToast.classList.add('show');
+         }
+         console.error('天地图 TK 未配置，请修改 CONFIG.tiandituTK');
+         return;
+       }
        var s = document.createElement('script');
        s.src = 'https://api.tianditu.gov.cn/api?v=4.0&tk=' + tk;
        s.onload = function () {
