@@ -283,6 +283,19 @@
        var tk = (typeof CONFIG !== 'undefined' && CONFIG.tiandituTK) ? CONFIG.tiandituTK : '';
        var s = document.createElement('script');
        s.src = 'https://api.tianditu.gov.cn/api?v=4.0&tk=' + tk;
+       s.onload = function () {
+         if (typeof window.onTMapCallback === 'function') {
+           window.onTMapCallback();
+         }
+       };
+       s.onerror = function () {
+         var toast = document.getElementById('toast');
+         if (toast) {
+           toast.textContent = '天地图 API 加载失败，请检查网络或稍后重试';
+           toast.classList.add('show');
+         }
+         console.error('天地图 API 加载失败');
+       };
        document.head.appendChild(s);
      })();
    </script>
